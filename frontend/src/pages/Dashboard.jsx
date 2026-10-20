@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Bell, ImageOff, Pencil, Sprout } from 'lucide-react';
+import { ArrowRight, Bell, ImageOff, Pencil, Play, Sprout, StepForward } from 'lucide-react';
 import { api, qs } from '../api.js';
 import { useApp } from '../context.jsx';
 import { useLoad } from '../hooks.js';
@@ -45,7 +45,7 @@ function SensorCard({ parameter, status }) {
 }
 
 export default function Dashboard() {
-  const { activeId, activePlant, settings, sim, dataVersion, hour12 } = useApp();
+  const { activeId, activePlant, settings, sim, dataVersion, hour12, loadSim, loadAlertCounts, bump, toast } = useApp();
   const defaultRange = settings?.values?.default_date_range || '7d';
   const [range, setRange] = useState(null);
   const [selected, setSelected] = useState(['soil_moisture', 'temperature']);
@@ -59,12 +59,52 @@ export default function Dashboard() {
   const s = status.data;
   const toggle = (k) => setSelected((cur) => (cur.includes(k) ? (cur.length > 1 ? cur.filter((x) => x !== k) : cur) : [...cur, k]));
 
+  const quickStart = async () => {
+    try {
+      await api.post('/simulation/start');
+      await Promise.all([loadSim(), loadAlertCounts()]);
+      bump();
+      toast('Simulation started! New readings are generated every 5s.');
+    } catch (err) {
+      toast(err.message, 'crit');
+    }
+  };
+
+  const quickTick = async () => {
+    try {
+      await api.post('/simulation/tick');
+      await Promise.all([loadSim(), loadAlertCounts()]);
+      bump();
+      toast('Generated 1 reading.');
+    } catch (err) {
+      toast(err.message, 'crit');
+    }
+  };
+
   return (
     <div className="stack">
       <PageHead title="Dashboard" subtitle="Current condition of the selected plant, from simulated sensor data.">
         <Link to="/plants" className="btn"><Sprout size={14} aria-hidden="true" />Manage plants</Link>
       </PageHead>
       <ErrorNotice error={status.error} onRetry={status.reload} />
+
+      {s && !s.latest_reading && (
+        <section className="panel" style={{ borderLeft: '4px solid var(--col-pri, #2d6a4f)' }}>
+          <div className="body row" style={{ justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 14 }}>
+            <div>
+              <h3 style={{ margin: '0 0 4px', fontSize: 16 }}>🌱 Simulation is currently stopped</h3>
+              <p className="muted small" style={{ margin: 0 }}>
+                This is a software-simulated sensor system. No readings exist yet. Click below to start recording data:
+              </p>
+            </div>
+            <div className="row" style={{ gap: 8 }}>
+              <button className="btn primary" onClick={quickStart}><Play size={14} aria-hidden="true" />Start simulation (every 5s)</button>
+              <button className="btn" onClick={quickTick}><StepForward size={14} aria-hidden="true" />Generate one reading</button>
+            </div>
+          </div>
+        </section>
+      )}
+
       {status.loading && !s ? <Spinner /> : s && (
         <>
           <section className="panel" aria-label="Plant overview">
