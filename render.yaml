@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: smart-plant-advisor
+    env: python
+    buildCommand: "cd frontend && npm install && npm run build && cd ../backend && pip install -r requirements.txt"
+    startCommand: "cd backend && gunicorn 'app:create_app()' --bind 0.0.0.0:$PORT --workers 1 --threads 4"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: NODE_VERSION
+        value: 20.11.0
+      - key: SERVE_FRONTEND
+        value: "true"
